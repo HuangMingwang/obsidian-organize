@@ -254,6 +254,10 @@ Regardless of input source, every generated note automatically goes through:
 5. Update MOC
 6. git commit: `feat(notes): 生成 {文件名}`
 
+### Custom Style
+
+No predefined prompt templates. If the user specifies a style in their request (e.g., "用面试速查的风格整理这个链接成笔记"), adapt the output style accordingly.
+
 ### Edge Cases
 
 - **URL inaccessible**: Inform user "无法抓取该链接", suggest pasting content
