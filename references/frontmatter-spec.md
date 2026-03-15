@@ -43,12 +43,12 @@ summary: 一句话描述这篇笔记的核心内容
 - Always set to today's date when modifying.
 
 ### status
-- `draft`: Note has not been simplified/organized yet.
-- `active`: Note has been simplified and is in clean, usable form.
+- `draft`: Note has not been organized yet.
+- `active`: Note has been organized and is in managed form.
 - `archived`: Note is outdated or no longer relevant.
 - Default to `draft` for unprocessed existing notes.
-- Set to `active` after successful simplification.
-- Set to `active` for newly generated notes (Mode B).
+- Set to `active` after successful organization (Organize or Generate mode).
+- Set to `active` for newly generated notes (Generate mode).
 
 ### summary
 - Generate a single sentence in Chinese summarizing the note's core content.
