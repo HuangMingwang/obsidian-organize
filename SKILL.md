@@ -84,6 +84,7 @@ This ensures fully automatic onboarding — new users just run the skill and eve
 | Mode | Message Format | Commit Contents |
 |---|---|---|
 | Rewrite | `refactor(notes): 重写 {文件名}` | Backup file + rewritten note |
+| Rewrite (format-only) | `style(notes): 格式化 {文件名}` | Formatted note only (no backup) |
 | Organize | `chore(notes): 整理 {文件名}` | Note move, frontmatter, image migration, links, MOC update |
 | Generate | `feat(notes): 生成 {文件名}` | New note + frontmatter + links + MOC update |
 
@@ -99,6 +100,14 @@ Each note gets its own commit for per-note rollback granularity.
 ## Mode: Rewrite
 
 Simplify and restructure note content. Does NOT touch metadata, classification, or links.
+
+**Two templates:**
+- **Default (content rewrite)**: Simplify and restructure content. Triggered by「重写笔记」「精简笔记」without format-only qualifier.
+- **Format-only**: Only clean up formatting, do not change content. Triggered when user explicitly mentions format cleanup, e.g.「重写笔记，只清理格式」「重写笔记 格式清理」「rewrite note, format only」.
+
+---
+
+### Template: Content Rewrite (Default)
 
 ### Flow
 
@@ -141,6 +150,40 @@ No inline diff confirmation. User reviews via `git diff HEAD~1` after commit. Un
 ### Batch Processing
 
 Supports directory-level invocation (e.g., `重写笔记 Areas/Java/`). Process one note at a time, each with its own commit. Show progress (e.g., "Processing 3/15: Java线程池.md").
+
+---
+
+### Template: Format-Only
+
+Only clean up formatting. Does NOT change content, meaning, or structure of the text.
+
+### Flow
+
+```
+Read note → Clean formatting → Write back in place → git commit
+```
+
+### Steps
+
+1. **Read note**: Read the target note content.
+2. **Clean formatting**: Apply the following rules:
+   - **Whitespace**: Remove trailing spaces, collapse multiple consecutive blank lines into one, remove extra spaces within lines (preserve intentional indentation and code block formatting)
+   - **Punctuation**: Unify punctuation usage — use Chinese punctuation in Chinese context, English punctuation in English/code context. Fix mixed punctuation (e.g., `，` followed by `)` → `，` followed by `）`)
+   - **Markdown structure**: Ensure heading levels are sequential (no skipping from `##` to `####`), unify list markers (consistent `-` or `*`), add language tags to fenced code blocks where detectable
+   - **Preserve as-is**: Code block contents, frontmatter, `## 相关笔记` section, image links, URLs
+3. **Write back**: Overwrite the original file in place.
+4. **git commit**: `style(notes): 格式化 {文件名}`
+
+### What Format-Only Does NOT Do
+
+- Does NOT rewrite or simplify content
+- Does NOT backup to Archives (formatting changes are safely reversible via git)
+- Does NOT generate/modify frontmatter
+- Does NOT move files, add links, or update MOC
+
+### Batch Processing
+
+Same as content rewrite — supports directory-level invocation with per-note commits.
 
 ---
 

@@ -33,6 +33,8 @@ Each note gets its own git commit — easy to roll back anytime.
 
 Strip redundancy, keep core logic and code examples. Original auto-backed up to Archives.
 
+Say "rewrite note, format only" to just clean up formatting (extra spaces, inconsistent punctuation, heading levels) without changing content.
+
 ### Organize — "organize note"
 
 Auto-classify → generate metadata → move to folder → add bidirectional links → update MOC.
