@@ -35,6 +35,20 @@ Automatically organize Obsidian notes using PARA + MOC + lightweight Zettelkaste
 
 The vault root is the current working directory.
 
+### Config Contract
+
+`.obsidian-organize.yml` is the canonical config for vault-specific behavior.
+
+This skill currently relies on the following fields:
+
+- `language`: primary language for generated summaries, tags, and note content when the user does not override it
+- `areas`: topic areas with keywords for categorization
+- `resources`: resource sub-folders with keywords for categorization
+- `moc_naming`: template for deriving MOC file names
+- `moc_subgroups`: suggested sub-groups for each area's MOC
+
+`references/folder-structure.md` and `references/moc-and-linking.md` assume these fields exist and must stay aligned with this contract.
+
 <HARD-GATE>
 On EVERY invocation, you MUST first check for the vault-level config file `.obsidian-organize.yml` in the vault root.
 
@@ -130,13 +144,13 @@ Large-batch execution is an optimization layer, not a separate workflow. Reuse t
 
 Simplify and restructure note content. Does NOT touch metadata, classification, or links.
 
-**Two templates:**
-- **Default (content rewrite)**: Simplify and restructure content. Triggered by「重写笔记」「精简笔记」without format-only qualifier.
+**Two Rewrite Paths:**
+- **Content rewrite**: Simplify and restructure content using a two-layer template system: `note_type` for routing and `rewrite_profile` for output shape. Triggered by「重写笔记」「精简笔记」without format-only qualifier.
 - **Format-only**: Only clean up formatting, do not change content. Triggered when user explicitly mentions format cleanup, e.g.「重写笔记，只清理格式」「重写笔记 格式清理」「rewrite note, format only」.
 
 ---
 
-### Template: Content Rewrite (Default)
+### Template: Content Rewrite
 
 ### Flow
 
@@ -148,23 +162,38 @@ Read note → Backup to Archives/原始版本/ → Simplify content → >300 lin
 
 1. **Read note**: Read the target note content.
 2. **Backup**: Copy the original file to `Archives/原始版本/{filename}_{YYYYMMDD_HHMMSS}.md`.
-3. **Simplify & Rewrite**: Apply rules from `references/content-restructuring.md`:
+3. **Select template layers**:
+   - If the user explicitly names a style, note type, or target shape, treat that as an override.
+   - Otherwise detect the note's `note_type` from signals in `references/content-restructuring.md`.
+   - Supported `note_type` values: `technical_note`, `tutorial_step`, `meeting_note`, `reading_excerpt`, `draft_note`.
+   - Each `note_type` maps to a default `rewrite_profile` that controls output structure and information priority.
+   - If detection is ambiguous and the top candidates would materially change the output, ask the user. If the note is obviously loose or mixed and no candidate wins clearly, fall back to `draft_note`.
+4. **Simplify & Rewrite**: Apply the common rules and the selected `rewrite_profile` from `references/content-restructuring.md`:
    - Remove redundant, repetitive content
    - Remove emotional/subjective expressions
-   - Restructure: core concepts → logic → methods → caveats → conclusions
-   - Preserve: key terms, code examples, comparison tables, architecture diagrams
-   - **Do NOT add `## 相关笔记` section**
+   - Preserve the information shape that matters for the selected `note_type`
    - **Do NOT generate/modify frontmatter** (preserve existing frontmatter as-is)
-4. **>300 line check**: If still over 300 lines after simplification, ask user whether to split. On confirmation, create sub-notes in the same directory (no frontmatter, no move). Add `## 相关笔记` cross-links between sibling sub-notes.
-5. **Write back**: Overwrite the original file in place (no move, no rename).
-6. **git commit**: `refactor(notes): 重写 {文件名}` — includes backup file + rewritten note.
+5. **>300 line check**: If still over 300 lines after simplification, ask user whether to split. On confirmation, create sub-notes in the same directory (no frontmatter, no move). Do NOT add auto-links between sibling sub-notes; linking stays in Organize.
+6. **Write back**: Overwrite the original file in place (no move, no rename).
+7. **git commit**: `refactor(notes): 重写 {文件名}` — includes backup file + rewritten note.
 
 ### What Rewrite Does NOT Do
 
 - Does NOT generate/modify frontmatter
 - Does NOT move files
-- Does NOT add bidirectional links or `## 相关笔记` section (except for split sub-notes)
+- Does NOT add bidirectional links or `## 相关笔记` section
 - Does NOT update MOC
+
+### Template Layering
+
+- `note_type` answers: "What kind of note is this?"
+- `rewrite_profile` answers: "What information shape should this type default to?"
+- The current default mapping is:
+  - `technical_note` → concept / mechanism / boundary / example
+  - `tutorial_step` → goal / prerequisite / steps / verification
+  - `meeting_note` → topic / decisions / action items / open issues
+  - `reading_excerpt` → topic / key ideas / supporting points / takeaways
+  - `draft_note` → main threads / merged points / open questions
 
 ### Review
 
@@ -223,16 +252,12 @@ Categorize, add metadata, link, and index notes. Does NOT modify note body conte
 ### Flow
 
 ```
-Rewrite detection → [optional: chain Rewrite] → Read config → Generate/complete frontmatter → Classify → Migrate images → Move note → Add bidirectional links → Update MOC → git commit
+Optional Rewrite handoff → Read config → Generate/complete frontmatter → Classify → Migrate images → Move note → Add bidirectional links → Update MOC → git commit
 ```
 
 ### Steps
 
-1. **Rewrite detection**: Check if `Archives/原始版本/` contains a backup for this note.
-   - **Not rewritten** → Ask: "该笔记尚未重写，是否先重写再整理？"
-     - User agrees → Execute full Rewrite flow (backup → simplify → commit) → Prompt user to review via `git diff HEAD~1` → User confirms → Continue with Organize steps below
-     - User declines → Skip rewrite, proceed directly with Organize steps
-   - **Already rewritten** → Proceed directly with Organize steps
+1. **Optional Rewrite handoff**: Organize can run independently. If the user explicitly wants both content cleanup and organization, or agrees after you offer Rewrite first, execute the full Rewrite flow before continuing. Do NOT infer "already rewritten" from backup files or other filesystem traces.
 2. **Read config**: Load `.obsidian-organize.yml`. If absent, run Auto-Init flow.
 3. **Generate/complete frontmatter**: Read `references/frontmatter-spec.md` for schema.
    - If no frontmatter: generate all fields from content analysis.
@@ -253,7 +278,7 @@ Rewrite detection → [optional: chain Rewrite] → Read config → Generate/com
 
 ### What Organize Does NOT Do
 
-- Does NOT modify note body content (unless chained Rewrite via rewrite detection)
+- Does NOT modify note body content (unless the user explicitly runs or approves Rewrite first)
 
 ### Auto-Execute vs Confirmation
 
@@ -287,8 +312,8 @@ Create new notes from multiple input sources. After generation, automatically ru
 Trigger: `生成笔记 {topic}`
 
 - Claude generates a structured note based on its own knowledge.
-- Write concise, clear content in Chinese.
-- Follow the standard template from `references/content-restructuring.md`.
+- Write concise, clear content in the vault's primary language unless the user asks for another language.
+- Follow the content rules from `references/content-restructuring.md`.
 
 #### 2. Conversation Extraction
 
@@ -383,4 +408,4 @@ After migration, replace the original path in the note with the new relative pat
 
 ## Language
 
-The vault is primarily in Chinese. Generate all content (frontmatter summary, tags, note content) in Chinese. Use Chinese folder names as defined in the taxonomy.
+Follow the vault's primary language from `.obsidian-organize.yml` when generating summaries, tags, note content, and user-facing examples inside notes. If the config is missing, infer the dominant language during Auto-Init and persist it to the config before continuing.

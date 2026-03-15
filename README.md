@@ -31,13 +31,13 @@ Each note gets its own git commit — easy to roll back anytime.
 
 ### Rewrite — "simplify this note"
 
-Strip redundancy, keep core logic and code examples. Original auto-backed up to Archives.
+Strip redundancy, keep core logic and code examples. Original auto-backed up to Archives. Rewrite does not touch metadata, category, or links.
 
 Say "rewrite note, format only" to just clean up formatting (extra spaces, inconsistent punctuation, heading levels) without changing content.
 
 ### Organize — "organize note"
 
-Auto-classify → generate metadata → move to folder → add bidirectional links → update MOC.
+Auto-classify → generate metadata → move to folder → add bidirectional links → update MOC. Organize does not rewrite the note body unless you explicitly run Rewrite first.
 
 ### Generate — "generate a note about XXX"
 
@@ -48,7 +48,7 @@ Four input sources:
 - 🔗 Fetch content from a URL and generate
 - 📋 Paste content and organize into a note
 
-After generation, the full organize pipeline runs automatically (classify + link + MOC).
+After generation, the full organize pipeline runs automatically (frontmatter + classify + link + MOC).
 
 ## 📸 Before & After
 
@@ -77,7 +77,7 @@ vault/
 │   └── images/
 ├── Archives/
 ├── MOCs/
-│   ├── Networking MOC.md
+│   ├── Networking Knowledge Map.md
 │   └── ...
 └── Inbox/
 ```
@@ -98,8 +98,8 @@ In Claude Code, `cd` to your Obsidian vault directory, then say:
 
 | You say | Effect |
 |---------|--------|
-| "organize note xxx.md" | Auto-classify, tag, link, update MOC |
-| "simplify note xxx.md" | Simplify content, backup original |
+| "organize note xxx.md" | Auto-classify, fill metadata, link, update MOC |
+| "simplify note xxx.md" | Rewrite content only, backup original |
 | "rewrite note, format only" | Clean up formatting without changing content |
 | "generate a note about Docker" | Generate from scratch + auto-organize |
 | "rewrite note Inbox/" | Batch-rewrite a folder of notes with per-note backups and commits |

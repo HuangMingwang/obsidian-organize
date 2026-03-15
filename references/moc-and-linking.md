@@ -1,8 +1,29 @@
 # MOC Format & Bidirectional Linking Rules
 
-## MOC Template
+This document covers two things only:
 
-Each Area gets one MOC file in `MOCs/`. Naming: `<Area名> 知识地图.md`.
+- how MOC files are named and updated
+- how related-note sections are generated
+
+Flow control still belongs to `SKILL.md`.
+
+## MOC Naming
+
+Each area gets one MOC file in `MOCs/`.
+
+The file name must be derived from `.obsidian-organize.yml` via `moc_naming`.
+
+Example:
+
+- template: `"{area_name} 知识地图"`
+- area: `Java`
+- result: `MOCs/Java 知识地图.md`
+
+Do NOT hardcode MOC names in the workflow.
+
+## Example MOC Template
+
+This is an example only. The actual file name and headings should follow the config.
 
 ```markdown
 ---
@@ -24,66 +45,54 @@ summary: Java 相关所有笔记的索引
 ## 并发
 - [[Java 并发编程核心]] - 并发编程总览
 - [[Java线程池]] - 线程池原理与配置
-
-## JVM
-- [[JVM]] - JVM 内存模型与 GC
 ```
-
-## MOC Generation
-
-MOC files are dynamically generated based on the `areas` and `moc_naming` fields in `.obsidian-organize.yml`.
-
-For each area in config, the MOC file name is determined by the `moc_naming` template (e.g., `"{area_name} 知识地图"` → `Java 知识地图.md`).
-
-Do NOT hardcode MOC file names. Always derive them from the config.
 
 ## MOC Update Rules
 
 When adding a note to a MOC:
 
-1. Read the existing MOC file (if it exists).
-2. Find the appropriate `##` sub-group based on the note's sub-topic.
-3. If no suitable sub-group exists, create a new `##` heading.
-4. Add the entry: `- [[Note Title]] - summary from frontmatter`
-5. Check for duplicates — do NOT add if the link already exists.
-6. Update the MOC's `updated` field in frontmatter.
-7. If the MOC doesn't exist yet, create it from the template above.
+1. Read the existing MOC if it exists.
+2. Find the best `##` sub-group for the note.
+3. If no suitable sub-group exists, create one.
+4. Add the entry as `- [[Note Title]] - summary from frontmatter`.
+5. Do not add duplicates.
+6. Update the MOC's `updated` field.
+7. If the MOC does not exist yet, create it using the naming template and example structure above.
 
 ## Sub-group Guidelines
 
-Sub-groups within MOCs are defined by the `moc_subgroups` field in `.obsidian-organize.yml`.
+Sub-groups are primarily defined by `moc_subgroups` in `.obsidian-organize.yml`.
 
-- If the config has sub-groups for the current area, use them as the initial `##` headings.
-- If no sub-groups are configured, infer logical groupings from the note's content.
-- Always create new sub-groups as needed when existing ones don't fit.
+- If config provides sub-groups for the current area, use them first.
+- If no configured group fits, infer a small, clear `##` heading from the note's subject.
+- Prefer stable, reusable group names over one-off headings.
 
 ## Bidirectional Linking Rules
 
 ### Finding Related Notes
 
-Use `Grep` to search efficiently. For a note being processed:
+For a note being processed:
 
-1. Extract the note's key concepts (from title, tags, and H2 headings).
-2. Search the vault for other notes that mention these concepts:
-   - `Grep` for the note's title in other files.
-   - `Grep` for the note's primary keywords in other files.
-3. Filter results: only include notes that are **truly related** (same domain or conceptual dependency).
+1. Extract key concepts from the title, tags, and H2 headings.
+2. Search the vault for notes that meaningfully overlap with those concepts.
+3. Keep only notes that are genuinely related, not merely in the same folder or sharing a broad tag.
 
 ### What Counts as Related
 
-- Notes that explain prerequisite concepts (e.g., JMM is prerequisite for Volatile).
-- Notes that cover the same system/component from different angles.
-- Notes that reference each other's core concepts in their content.
+- prerequisite concepts
+- the same system viewed from another angle
+- direct conceptual dependencies
+- notes that clearly refer to each other's core ideas
 
-### What Does NOT Count
+### What Does Not Count
 
-- Notes that merely share a tag but have no conceptual connection.
-- Notes in the same folder but about unrelated sub-topics.
-- MOC index notes (don't link to MOCs from individual notes).
+- notes that only share a broad tag
+- notes in the same folder but on unrelated sub-topics
+- MOC index notes
 
 ### Inserting Links
 
-Add a `## 相关笔记` section at the **end** of the note (before any existing trailing content like references or footnotes):
+Add a `## 相关笔记` section near the end of the note, before trailing references or appendices if they exist.
 
 ```markdown
 ## 相关笔记
@@ -92,16 +101,17 @@ Add a `## 相关笔记` section at the **end** of the note (before any existing 
 ```
 
 Rules:
-- Do NOT insert links inline in the note's body text.
-- Each entry: `- [[Title]] - one-sentence description`
-- Limit to 5-8 most relevant links. Don't over-link.
-- Sort by relevance (most related first).
+
+- Do NOT insert links inline in the main body.
+- Each entry should be `- [[Title]] - one-sentence description`.
+- Limit to the 5-8 most relevant links.
+- Sort by relevance.
 
 ### Bidirectional Update
 
 When adding A → B:
+
 1. Open note B.
-2. Check if B already has a `## 相关笔记` section.
-3. If not, create it.
-4. Check if A is already linked in B. If not, add it.
-5. Save B.
+2. Reuse its existing `## 相关笔记` section if present.
+3. Add A only if it is not already listed.
+4. Keep the section deduplicated.
