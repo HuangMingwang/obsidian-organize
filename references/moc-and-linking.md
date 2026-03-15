@@ -6,6 +6,7 @@ This document covers two things only:
 - how related-note sections are generated
 
 Flow control still belongs to `SKILL.md`.
+Shared-file writes described here happen during `Finalize`, not during note-local `Apply`.
 
 ## MOC Naming
 
@@ -49,7 +50,7 @@ summary: Java 相关所有笔记的索引
 
 ## MOC Update Rules
 
-When adding a note to a MOC:
+During `Finalize`, when adding a successful note to a MOC:
 
 1. Read the existing MOC if it exists.
 2. Find the best `##` sub-group for the note.
@@ -58,6 +59,7 @@ When adding a note to a MOC:
 5. Do not add duplicates.
 6. Update the MOC's `updated` field.
 7. If the MOC does not exist yet, create it using the naming template and example structure above.
+8. Batch updates should aggregate candidate entries before editing the file so the MOC is written once per finalize pass.
 
 ## Sub-group Guidelines
 
@@ -69,9 +71,15 @@ Sub-groups are primarily defined by `moc_subgroups` in `.obsidian-organize.yml`.
 
 ## Bidirectional Linking Rules
 
+The related-note section heading should follow the vault's primary language from `.obsidian-organize.yml`.
+
+- Chinese vaults: `## 相关笔记`
+- English vaults: `## Related Notes`
+- If a managed related-note section already exists with the correct meaning, reuse that heading rather than creating a second section
+
 ### Finding Related Notes
 
-For a note being processed:
+For a note that completed note-local processing successfully:
 
 1. Extract key concepts from the title, tags, and H2 headings.
 2. Search the vault for notes that meaningfully overlap with those concepts.
@@ -92,7 +100,7 @@ For a note being processed:
 
 ### Inserting Links
 
-Add a `## 相关笔记` section near the end of the note, before trailing references or appendices if they exist.
+During `Finalize`, add the managed related-note section near the end of the note, before trailing references or appendices if they exist.
 
 ```markdown
 ## 相关笔记
@@ -109,9 +117,11 @@ Rules:
 
 ### Bidirectional Update
 
-When adding A → B:
+During `Finalize`, when adding A → B:
 
 1. Open note B.
-2. Reuse its existing `## 相关笔记` section if present.
+2. Reuse its existing managed related-note section if present.
 3. Add A only if it is not already listed.
 4. Keep the section deduplicated.
+
+Do NOT update reverse links during note-local `Apply`.

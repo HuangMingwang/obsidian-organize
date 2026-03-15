@@ -2,7 +2,12 @@
 
 Use this document for content shaping only.
 
-It applies to `Rewrite` and the content-writing step inside `Generate`.
+It applies to `Rewrite` and the draft-content step inside `Generate`.
+
+It shapes unmanaged note body content only.
+
+`Organize` must NOT use this document to rewrite existing note bodies.
+After `Generate` creates a draft body with these rules, metadata, classification, and graph updates belong to `Organize`.
 
 It does NOT define:
 

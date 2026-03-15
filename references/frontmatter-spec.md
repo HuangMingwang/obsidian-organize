@@ -4,6 +4,11 @@ This document defines note metadata only.
 
 Flow decisions such as when to organize, when to rewrite, and when to commit belong to `SKILL.md`.
 
+Frontmatter is a managed block.
+
+- `Organize` and `Generate` may create or complete it
+- `Rewrite` must preserve it as-is
+
 ## Schema
 
 ```yaml
@@ -80,3 +85,5 @@ source: https://example.com/article
 - Only fill in fields that are missing.
 - Always update the `updated` field to today's date.
 - If existing frontmatter has non-standard fields, preserve them as-is.
+
+This reference does not authorize rewriting the main note body. Body-content reshaping belongs to `references/content-restructuring.md` and only for `Rewrite` or draft creation inside `Generate`.

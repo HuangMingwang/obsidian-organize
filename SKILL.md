@@ -35,45 +35,165 @@ Automatically organize Obsidian notes using PARA + MOC + lightweight Zettelkaste
 
 The vault root is the current working directory.
 
-### Config Contract
+### Mode-to-Config Dependency
 
 `.obsidian-organize.yml` is the canonical config for vault-specific behavior.
+
+- `Rewrite` MAY run without `.obsidian-organize.yml`
+- `Organize` and `Generate` REQUIRE `.obsidian-organize.yml`
+- If config is missing for `Organize` or `Generate`, pause the normal flow, complete onboarding, write the config, then resume the original request
+
+### Config Contract
 
 This skill currently relies on the following fields:
 
 - `language`: primary language for generated summaries, tags, and note content when the user does not override it
-- `areas`: topic areas with keywords for categorization
-- `resources`: resource sub-folders with keywords for categorization
+- `areas`: topic areas, each with a stable `name` and `keywords`
+- `resources`: resource sub-folders, each with a stable `name` and `keywords`
 - `moc_naming`: template for deriving MOC file names
 - `moc_subgroups`: suggested sub-groups for each area's MOC
+- `defaults.unmatched_category`: fallback destination for notes that match no configured rule
+- `defaults.batch_mode`: batch ambiguity policy; current default is `skip_ambiguous`
+
+Only fields that directly drive execution belong in `.obsidian-organize.yml`.
+
+Example:
+
+```yaml
+language: zh-CN
+areas:
+  - name: 计算机网络
+    keywords: [TCP, HTTP, 代理, CDN]
+resources:
+  - name: 文章
+    keywords: [摘录, 书摘, 课程]
+moc_naming: "{area_name} 知识地图"
+moc_subgroups:
+  计算机网络: [基础, 传输层, 应用层]
+defaults:
+  unmatched_category: Inbox
+  batch_mode: skip_ambiguous
+```
 
 `references/folder-structure.md` and `references/moc-and-linking.md` assume these fields exist and must stay aligned with this contract.
 
-<HARD-GATE>
-On EVERY invocation, you MUST first check for the vault-level config file `.obsidian-organize.yml` in the vault root.
+### First-Run Onboarding Wizard
 
-**If `.obsidian-organize.yml` EXISTS:**
-- Read it and use its rules for all categorization, MOC creation, and folder decisions.
+When `Organize` or `Generate` requires config and `.obsidian-organize.yml` is missing, run a bounded onboarding wizard before normal execution.
 
-**If `.obsidian-organize.yml` does NOT exist — run Auto-Init:**
+#### Discovery
 
-1. **Scan the vault**: Use `Glob` to find all `.md` files. Read the first 20 lines of each note (title, headings, key terms).
-2. **Cluster by topic**: Analyze all notes and identify 5-15 natural topic clusters based on content similarity, shared terminology, and domain patterns.
-3. **Generate config**: For each cluster, derive:
-   - An Area name (concise, 2-5 characters in the vault's primary language)
-   - 3-8 representative keywords for auto-categorization
-   - 2-5 suggested MOC sub-groups
-4. **Also detect**:
-   - Resources sub-folders (PDFs, images, non-technical content)
-   - The vault's primary language (for `language` field)
-5. **Present the generated config to the user** for review:
-   - Show the proposed Areas, keywords, and sub-groups in a readable format
-   - Ask: "这个分类结构可以吗？有需要调整的吗？"
-6. **After user confirms**: Write `.obsidian-organize.yml` to vault root.
-7. **Then proceed** with the user's original request.
+The wizard MUST:
 
-This ensures fully automatic onboarding — new users just run the skill and everything is set up.
-</HARD-GATE>
+1. inventory Markdown files by path and filename
+2. inspect headings and early content only
+3. cap direct content inspection when the vault is large
+4. infer a best-effort initial config instead of trying to solve taxonomy perfectly
+
+Recommended discovery strategy:
+
+- read file path and filename for all candidate Markdown notes
+- read the first 20 lines for notes until enough signal is collected
+- when the vault is large, sample representative notes across folders instead of deeply reading every note
+
+Do NOT require full-body parsing of the entire vault before proposing a config.
+
+#### Review
+
+Present the proposed config to the user in bounded review steps:
+
+1. primary language
+2. proposed `Areas`
+3. proposed `Resources`
+4. `moc_naming`
+5. fallback behavior for unmatched notes
+
+Use human-readable summaries first, not raw YAML as the primary interface.
+
+#### Completion
+
+After the user confirms the proposal:
+
+1. write `.obsidian-organize.yml`
+2. re-enter the normal execution pipeline
+3. resume the original `Organize` or `Generate` request
+
+## Execution Status
+
+Every targeted note, generated note, or batch item MUST end in exactly one status:
+
+- `done`: completed successfully
+- `skipped`: intentionally not processed because of safe, expected ambiguity or incompatibility
+- `blocked`: cannot proceed without a user decision or a vault-level prerequisite
+- `failed`: execution attempted but an actual error occurred
+
+Batch summaries MUST report these statuses explicitly rather than collapsing all non-success results into a generic failure bucket.
+
+## Execution Pipeline
+
+All modes use the same four execution stages:
+
+1. `Preflight`
+2. `Plan`
+3. `Apply`
+4. `Finalize`
+
+### Stage 1: Preflight
+
+Before changing files:
+
+- route the request to `Rewrite`, `Organize`, or `Generate`
+- resolve the request scope: single note, directory, or multi-item generation request
+- check whether the resolved mode requires config
+- check whether the vault is a git repository
+- check for a dirty worktree
+- determine whether the request is a batch
+
+`Preflight` makes no content changes.
+
+### Stage 2: Plan
+
+Before writing files, build a concrete execution plan.
+
+For each candidate note, determine:
+
+- whether it is `ready`
+- whether it should be `skipped`
+- whether it is `blocked`
+- what note-local changes belong in `Apply`
+- what shared graph updates belong in `Finalize`
+
+`Plan` is where large requests are bounded and ambiguous notes are separated from safe work. Shared outputs are NOT written here.
+
+### Stage 3: Apply
+
+`Apply` performs note-local work only.
+
+Allowed in `Apply`:
+
+- rewrite content or formatting
+- generate or complete frontmatter
+- create a new generated note
+- classify and move a note
+- migrate local images tied to the current note
+
+Disallowed in `Apply`:
+
+- editing MOCs
+- editing reverse related-note sections on other notes
+- any other shared graph mutation
+
+### Stage 4: Finalize
+
+`Finalize` is the ONLY stage allowed to update shared graph outputs.
+
+Use it to:
+
+- compute and write the managed related-note section
+- update or create MOCs
+- deduplicate shared entries
+- produce the final execution report
+- record batch-level commits when shared outputs changed
 
 ---
 
@@ -84,7 +204,7 @@ This ensures fully automatic onboarding — new users just run the skill and eve
 - Before every execution, check if the vault is a git repository.
 - **Not a git repo** → Ask: "需要 git 来支持 diff 审核和版本回滚，是否执行 git init？"
   - User agrees → run `git init`
-  - User declines → skip all commit steps, execute remaining flow normally
+  - User declines → skip all commit steps, execute remaining flow normally, and report that git rollback is unavailable
 
 ### Working Tree Status
 
@@ -95,19 +215,29 @@ This ensures fully automatic onboarding — new users just run the skill and eve
 
 ### Commit Strategy
 
+#### Single-Note Requests
+
 | Mode | Message Format | Commit Contents |
 |---|---|---|
 | Rewrite | `refactor(notes): 重写 {文件名}` | Backup file + rewritten note |
 | Rewrite (format-only) | `style(notes): 格式化 {文件名}` | Formatted note only (no backup) |
-| Organize | `chore(notes): 整理 {文件名}` | Note move, frontmatter, image migration, links, MOC update |
-| Generate | `feat(notes): 生成 {文件名}` | New note + frontmatter + links + MOC update |
+| Organize | `chore(notes): 整理 {文件名}` | Note-local changes + any shared graph updates triggered by this one note |
+| Generate | `feat(notes): 生成 {文件名}` | New note + note-local changes + any shared graph updates triggered by this one note |
 
-Each note gets its own commit for per-note rollback granularity.
+#### Batch Requests
+
+Batch requests use AT MOST two commits:
+
+1. an `apply` commit for note-local changes
+2. a `finalize` commit for shared graph updates
+
+Do NOT promise one commit per note in batch mode. Shared outputs make that boundary misleading.
 
 ### Rollback Guide
 
 - **Rewrite rollback**: `git checkout HEAD~1 -- {file}` to restore previous version, or check `Archives/原始版本/` backup
-- **Organize rollback**: `git revert <commit>` to undo the entire organize operation (multi-file: move, MOC, links)
+- **Single-note Organize / Generate rollback**: `git revert <commit>` to undo the request
+- **Batch rollback**: revert the `finalize` commit first, then revert the `apply` commit if needed
 
 ---
 
@@ -125,18 +255,35 @@ Applies when the user targets a directory, says "all notes" / "整个文件夹",
 
 1. **Scope confirmation**: Tell the user how many notes will be processed and the planned batch size before starting large-batch execution. Example: "将处理 84 篇笔记，按每批 5 篇执行，是否继续？"
 2. **Small batches only**: Split work into bounded batches. Default to 5 notes per batch; reduce to 3 if notes are unusually long or complex. Do not process an unbounded list as a single job.
-3. **Subagents when available**: If the runtime supports subagents, process batches in parallel with bounded concurrency.
-   - Run at most 3 batches at the same time.
-   - Each subagent must process notes inside its assigned batch sequentially, following the normal per-note flow and safety rules.
-   - NEVER spawn one subagent per note for very large note sets.
-4. **Sequential fallback**: If subagents are not available, use the exact same batch plan in the main agent and process batches sequentially. Large-batch behavior must still work correctly without subagents.
-5. **Progress reporting**: Report progress after each note or batch using a concrete format such as "Batch 2/6, note 3/5: Java线程池.md".
-6. **Keep per-note boundaries**: Large-batch mode changes scheduling only. Each note still gets its own backup/commit/review behavior based on the active mode.
-7. **Pause on ambiguity**: If a note needs user confirmation (classification mismatch, destination filename conflict, split decision, etc.), pause the affected note and ask. Do not silently guess in order to keep the batch moving.
+3. **Per-note results first**: During `Plan` and `Apply`, work per note and record whether each item is `done`, `skipped`, `blocked`, or `failed`.
+4. **Ambiguity handling**: If one note is ambiguous but the rest of the batch is safe, mark that note as `skipped` and continue. Reserve `blocked` for conditions that stop the whole request.
+5. **Shared outputs finalize later**: related-note sections, reverse links, and MOC updates are shared outputs and MUST wait until `Finalize`.
+6. **Concurrency boundary**: Parallelism is allowed only for isolated work in `Plan` or note-local work in `Apply`. `Finalize` MUST run serially.
+7. **Progress reporting**: Report progress after each note or batch using a concrete format such as "Batch 2/6, note 3/5: Java线程池.md".
 
 ### Design Principle
 
-Large-batch execution is an optimization layer, not a separate workflow. Reuse the normal single-note rules for Rewrite, Organize, and Generate; only the scheduling and progress reporting change.
+Large-batch execution is an optimization layer, not a separate workflow. Reuse the normal single-note rules for Rewrite, Organize, and Generate, but keep shared graph writes inside `Finalize`.
+
+---
+
+## Managed Blocks
+
+This skill distinguishes managed structural content from the main note body.
+
+Managed blocks are:
+
+- frontmatter
+- the managed related-note section
+- MOC files and their entries
+
+Unmanaged content is the main note body that users primarily read and edit.
+
+Mode boundary rule:
+
+- `Rewrite` may change unmanaged content only
+- `Organize` may maintain managed blocks but must not rewrite unmanaged content
+- `Generate` creates the initial unmanaged draft, then hands off managed-block work to `Organize`
 
 ---
 
@@ -179,9 +326,10 @@ Read note → Backup to Archives/原始版本/ → Simplify content → >300 lin
 
 ### What Rewrite Does NOT Do
 
+- Does NOT modify managed blocks such as frontmatter or the managed related-note section
 - Does NOT generate/modify frontmatter
 - Does NOT move files
-- Does NOT add bidirectional links or `## 相关笔记` section
+- Does NOT add bidirectional links or the managed related-note section
 - Does NOT update MOC
 
 ### Template Layering
@@ -202,12 +350,12 @@ No inline diff confirmation. User reviews via `git diff HEAD~1` after commit. Un
 ### Edge Cases
 
 - **Empty file / frontmatter only, no body**: Skip, inform user "无内容可重写"
-- **Existing `## 相关笔记` section**: Preserve as-is, do not modify
+- **Existing managed related-note section**: Preserve as-is, do not modify
 - **Re-rewriting an already rewritten note**: Execute normally (backup again, simplify again)
 
 ### Batch Processing
 
-Supports directory-level invocation (e.g., `重写笔记 Areas/Java/`). For small sets, process one note at a time with its own backup and commit. For large sets, follow the global `Large Batch Processing` rules above; each note still keeps independent backup/commit boundaries.
+Supports directory-level invocation (e.g., `重写笔记 Areas/Java/`). For large sets, follow the global `Large Batch Processing` rules above. Per-note rewrites still happen in `Apply`, and commit behavior follows the global git rules.
 
 ---
 
@@ -228,7 +376,7 @@ Read note → Clean formatting → Write back in place → git commit
    - **Whitespace**: Remove trailing spaces, collapse multiple consecutive blank lines into one, remove extra spaces within lines (preserve intentional indentation and code block formatting)
    - **Punctuation**: Unify punctuation usage — use Chinese punctuation in Chinese context, English punctuation in English/code context. Fix mixed punctuation (e.g., `，` followed by `)` → `，` followed by `）`)
    - **Markdown structure**: Ensure heading levels are sequential (no skipping from `##` to `####`), unify list markers (consistent `-` or `*`), add language tags to fenced code blocks where detectable
-   - **Preserve as-is**: Code block contents, frontmatter, `## 相关笔记` section, image links, URLs
+   - **Preserve as-is**: Code block contents, frontmatter, the managed related-note section, image links, URLs
 3. **Write back**: Overwrite the original file in place.
 4. **git commit**: `style(notes): 格式化 {文件名}`
 
@@ -241,69 +389,69 @@ Read note → Clean formatting → Write back in place → git commit
 
 ### Batch Processing
 
-Same as content rewrite — supports directory-level invocation with per-note commits.
+Same as content rewrite — supports directory-level invocation and follows the global batch + git rules.
 
 ---
 
 ## Mode: Organize
 
-Categorize, add metadata, link, and index notes. Does NOT modify note body content.
+Categorize, add metadata, maintain managed graph content, and update indexes. Does NOT rewrite the main note body content.
 
 ### Flow
 
 ```
-Optional Rewrite handoff → Read config → Generate/complete frontmatter → Classify → Migrate images → Move note → Add bidirectional links → Update MOC → git commit
+Preflight → Plan note-local changes → Optional Rewrite handoff → Apply frontmatter/classify/move/images → Finalize related notes + MOC → git record
 ```
 
 ### Steps
 
 1. **Optional Rewrite handoff**: Organize can run independently. If the user explicitly wants both content cleanup and organization, or agrees after you offer Rewrite first, execute the full Rewrite flow before continuing. Do NOT infer "already rewritten" from backup files or other filesystem traces.
-2. **Read config**: Load `.obsidian-organize.yml`. If absent, run Auto-Init flow.
+2. **Read config**: Load `.obsidian-organize.yml`. If absent, enter onboarding, write the config, then resume the organize request.
 3. **Generate/complete frontmatter**: Read `references/frontmatter-spec.md` for schema.
    - If no frontmatter: generate all fields from content analysis.
    - If frontmatter exists: preserve existing fields, fill missing ones, update `updated` date.
    - Set `status` to `active` (note is now in managed form).
    - Auto-execute, no user confirmation needed.
-4. **Classify**: Match note content against `areas` keywords in config to determine target Area. If no match, ask user.
+4. **Classify**: Follow the decision tree in `references/folder-structure.md`: `Projects -> Areas -> Resources -> defaults.unmatched_category`.
+   - If no configured rule matches, place the note in `defaults.unmatched_category`.
+   - Treat only multiple plausible configured destinations or a proposal to invent a new category as ambiguity.
 5. **Image migration**: See Image Migration section below.
 6. **Move note**: Move to the PARA folder matching its `category`. Read `references/folder-structure.md` for structure. Create target folder if needed. If same-name file exists at destination, ask user.
-7. **Bidirectional links**: Read `references/moc-and-linking.md` for rules.
-   - Use `Grep` to find related notes by title/keyword matches.
-   - Add `## 相关笔记` section at the end of the note (5-8 links).
-   - Update related notes to link back.
-8. **Update MOC**: Read `references/moc-and-linking.md` for MOC format.
+7. **Finalize graph updates**: During `Finalize`, read `references/moc-and-linking.md` and update shared outputs.
+   - Find related notes from the successful organize results.
+   - Add or merge the managed related-note section.
    - Find or create the corresponding MOC in `MOCs/`.
    - Add the note to the appropriate sub-group.
-9. **git commit**: `chore(notes): 整理 {文件名}` — includes all changes from this note's organize operation.
+8. **git record**: Single-note requests use one commit. Batch requests follow the global `apply` + `finalize` commit policy.
 
 ### What Organize Does NOT Do
 
-- Does NOT modify note body content (unless the user explicitly runs or approves Rewrite first)
+- Does NOT rewrite unmanaged note body content (unless the user explicitly runs or approves Rewrite first)
 
 ### Auto-Execute vs Confirmation
 
-- **Auto-execute**: frontmatter generation, image migration, file move, bidirectional links, MOC update
-- **Needs confirmation**: classification mismatch (no keyword match), same-name file at destination
+- **Auto-execute**: frontmatter generation, image migration, file move, and shared graph updates during `Finalize`
+- **Needs confirmation**: multiple plausible configured destinations in a single-note request, proposal to invent a new category, same-name file at destination
 
 ### Backup Strategy
 
-Organize mode does NOT backup to Archives. Reason: all Organize changes (frontmatter, move, links) are tracked via git commit and can be rolled back with `git revert <commit>`. Content-level backup is handled by Rewrite mode.
+Organize mode does NOT backup to Archives. Reason: organize changes are structural and rely on git-based rollback. Content-level backup is handled by Rewrite mode.
 
 ### Edge Cases
 
-- **Note already in correct location**: Skip move, continue with frontmatter, links, MOC update
-- **Empty file / frontmatter only**: Classify based on filename and existing tags; if no match, ask user
-- **Existing `## 相关笔记` section**: Merge and deduplicate, do not add duplicate links
+- **Note already in correct location**: Skip move, continue with frontmatter and any `Finalize` graph updates
+- **Empty file / frontmatter only**: Classify based on filename and existing tags; if nothing matches, place it in `defaults.unmatched_category`
+- **Existing managed related-note section**: Merge and deduplicate, do not add duplicate links
 
 ### Batch Processing
 
-Supports directory-level invocation (e.g., `整理笔记 Inbox/`). For large sets, follow the global `Large Batch Processing` rules above. Each note still gets its own commit, and any note that needs confirmation (classification, name conflict) must pause and ask before continuing that note.
+Supports directory-level invocation (e.g., `整理笔记 Inbox/`). For large sets, follow the global `Large Batch Processing` rules above. Ambiguous notes may be marked `skipped`, note-local work stays in `Apply`, and graph updates wait for `Finalize`.
 
 ---
 
 ## Mode: Generate
 
-Create new notes from multiple input sources. After generation, automatically runs the full Organize flow.
+Create new note drafts from multiple input sources. After draft creation, automatically runs the standard Organize flow.
 
 ### Input Sources
 
@@ -344,12 +492,12 @@ Trigger: `整理内容成笔记`（user then pastes text）
 
 Regardless of input source, every generated note automatically goes through:
 
-1. Simplify content per content-restructuring.md rules
-2. Generate complete frontmatter (set `status: active`). Read `references/frontmatter-spec.md`.
-3. Classify into correct PARA folder. Read `references/folder-structure.md`.
-4. Add bidirectional links. Read `references/moc-and-linking.md`.
-5. Update MOC
-6. git commit: `feat(notes): 生成 {文件名}`
+1. Create or simplify the unmanaged draft body per `references/content-restructuring.md`
+2. Hand the draft into the standard `Organize` pipeline
+3. Generate complete frontmatter (set `status: active`). Read `references/frontmatter-spec.md`.
+4. Classify into correct PARA folder. Read `references/folder-structure.md`.
+5. Queue shared graph updates for `Finalize`. Read `references/moc-and-linking.md`.
+6. Record the request using the global git policy
 
 ### Custom Style
 
@@ -363,7 +511,7 @@ No predefined prompt templates. If the user specifies a style in their request (
 
 ### Batch Processing
 
-If one request expands into many generated notes (for example, multiple URLs, multiple pasted source items, or a bulk import request), follow the global `Large Batch Processing` rules above. Each generated note must run the full output flow independently and receive its own commit.
+If one request expands into many generated notes (for example, multiple URLs, multiple pasted source items, or a bulk import request), follow the global `Large Batch Processing` rules above. Generate note-local drafts in `Apply`, then aggregate shared graph updates in `Finalize`.
 
 ---
 
@@ -373,8 +521,8 @@ Applies during Organize and Generate modes when moving notes.
 
 ### Scan Rules
 
-- Only process `![alt](path)` format local image references.
-- Ignore `![[]]` wiki-link format (preserve compatibility with standard Markdown platforms like Yuque). If a note only contains `![[]]` format images, inform user: "检测到 wiki 链接格式图片，未迁移"
+- Process `![alt](path)` format local image references when a move would otherwise break the path.
+- For `![[image.png]]` wiki-image embeds: preserve the embed syntax, keep the image in place, and report that the wiki image was preserved in place. Do NOT migrate wiki images in this redesign.
 - Ignore web images (`http://`, `https://` prefix).
 
 ### Target Path
@@ -389,7 +537,7 @@ If same-name image exists at target: append timestamp suffix `img1_20260315_1530
 
 ### Path Update
 
-After migration, replace the original path in the note with the new relative path.
+After migrating a standard Markdown image, replace the original path in the note with the new relative path.
 
 ### Skip Conditions
 
@@ -403,9 +551,11 @@ After migration, replace the original path in the note with the new relative pat
 - NEVER delete notes without explicit user confirmation.
 - NEVER overwrite an existing note at the destination without asking.
 - Create target folders if they don't exist.
-- If categorization is ambiguous, ask the user rather than guessing.
+- If no configured category matches, place the note in `defaults.unmatched_category` rather than inventing a new category.
+- If multiple configured categories are plausible in a single-note request, ask the user rather than guessing.
+- If multiple configured categories are plausible in a batch request and the rest of the work is safe, mark that note as `skipped` and report it.
 - Only Rewrite mode creates backups in `Archives/原始版本/`; Organize and Generate rely on git for rollback.
 
 ## Language
 
-Follow the vault's primary language from `.obsidian-organize.yml` when generating summaries, tags, note content, and user-facing examples inside notes. If the config is missing, infer the dominant language during Auto-Init and persist it to the config before continuing.
+Follow the vault's primary language from `.obsidian-organize.yml` when generating summaries, tags, note content, and user-facing examples inside notes. If the current mode requires config and the config is missing, complete onboarding before continuing. If `Rewrite` runs without config, preserve the dominant language already present in the note unless the user asks for another language.
