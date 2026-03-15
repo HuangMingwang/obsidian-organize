@@ -100,6 +100,7 @@ npx skills add https://github.com/HuangMingwang/obsidian-organize
 |------|------|
 | 「整理笔记 xxx.md」 | 自动分类、打标签、建链接、更新 MOC |
 | 「精简笔记 xxx.md」 | 精简内容，原文备份 |
+| 「重写笔记，只清理格式」 | 只清理格式，不改内容 |
 | 「生成一篇关于 Docker 的笔记」 | 从零生成 + 自动整理 |
 | 「整理这个文件夹」 | 批量整理目录下所有笔记 |
 

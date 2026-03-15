@@ -100,6 +100,7 @@ In Claude Code, `cd` to your Obsidian vault directory, then say:
 |---------|--------|
 | "organize note xxx.md" | Auto-classify, tag, link, update MOC |
 | "simplify note xxx.md" | Simplify content, backup original |
+| "rewrite note, format only" | Clean up formatting without changing content |
 | "generate a note about Docker" | Generate from scratch + auto-organize |
 | "organize this folder" | Batch organize all notes in directory |
 
