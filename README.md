@@ -1,122 +1,124 @@
+[中文](README.zh-CN.md)
+
 # 🗂 obsidian-organize
 
-> 一句话让 Claude 帮你整理 Obsidian 笔记 — 自动分类、打标签、建链接、更新索引
+> Let Claude organize your Obsidian notes in one sentence — auto-categorize, tag, link, and update indexes
 
-![关系图谱](assets/graph.png)
+![Knowledge Graph](assets/graph.png)
 
-▲ 整理后的 Obsidian 知识图谱 — PARA 分类 + 双向链接自动生成
+▲ Organized Obsidian knowledge graph — PARA classification + auto-generated bidirectional links
 
-## 为什么需要 obsidian-organize？
+## Why obsidian-organize?
 
-笔记越记越多，但——
+As your notes grow, things get messy:
 
-- 📁 文件全堆在一个文件夹里，找不到
-- 🏷 想打标签但懒得手动分类
-- 🔗 知道笔记之间有关联，但从来不建链接
-- 📑 MOC 索引想维护但总是忘记更新
+- 📁 Hundreds of files dumped in one folder, impossible to find anything
+- 🏷 You want tags but never bother to categorize manually
+- 🔗 You know your notes are related but never create links
+- 📑 You want MOC indexes but always forget to update them
 
-**obsidian-organize 让这些全自动完成。**
-只需对 Claude 说「整理笔记」，它会：
+**obsidian-organize automates all of this.**
+Just tell Claude "organize my notes", and it will:
 
-1. 读懂内容，自动归入 PARA 文件夹
-2. 生成完整的 frontmatter（标题、分类、标签、摘要）
-3. 找到相关笔记，添加双向链接
-4. 更新对应 MOC 索引页
+1. Read and understand content, auto-classify into PARA folders
+2. Generate complete frontmatter (title, category, tags, summary)
+3. Find related notes and add bidirectional links
+4. Update the corresponding MOC index page
 
-每条笔记一次 git commit，不满意随时回滚。
+Each note gets its own git commit — easy to roll back anytime.
 
-## ✨ 三种模式
+## ✨ Three Modes
 
-### 重写 — 「帮我精简这篇笔记」
+### Rewrite — "simplify this note"
 
-去掉冗余和废话，保留核心逻辑和代码示例。原文自动备份到 Archives。
+Strip redundancy, keep core logic and code examples. Original auto-backed up to Archives.
 
-### 整理 — 「整理笔记」
+### Organize — "organize note"
 
-自动分类 → 生成元数据 → 移动到对应文件夹 → 添加双向链接 → 更新 MOC。
+Auto-classify → generate metadata → move to folder → add bidirectional links → update MOC.
 
-### 生成 — 「生成一篇关于 XXX 的笔记」
+### Generate — "generate a note about XXX"
 
-支持四种输入源：
+Four input sources:
 
-- 💬 给个主题，从零生成
-- 🗣 把当前对话整理成笔记
-- 🔗 从 URL 抓取内容生成
-- 📋 粘贴一段内容整理成笔记
+- 💬 Give a topic, generate from scratch
+- 🗣 Turn the current conversation into a note
+- 🔗 Fetch content from a URL and generate
+- 📋 Paste content and organize into a note
 
-生成后自动执行完整的整理流程（分类 + 链接 + MOC）。
+After generation, the full organize pipeline runs automatically (classify + link + MOC).
 
-## 📸 效果展示
+## 📸 Before & After
 
-### 整理前
+### Before
 
 ```
 vault/
-├── 乱七八糟的笔记1.md
-├── 学习笔记.md
-├── 面试准备.md
-├── 一些想法.md
-├── proxy原理.md
-└── ...（200+ 篇笔记散落在根目录）
+├── random-thoughts.md
+├── study-notes.md
+├── interview-prep.md
+├── some-ideas.md
+├── proxy-explained.md
+└── ...(200+ notes scattered in root)
 ```
 
-### 整理后
+### After
 
 ```
 vault/
 ├── Areas/
-│   ├── 计算机网络/
-│   ├── 学习习惯/
+│   ├── networking/
+│   ├── study-habits/
 │   └── ...
 ├── Projects/
 ├── Resources/
-│   └── 图片/
+│   └── images/
 ├── Archives/
 ├── MOCs/
-│   ├── 计算机网络 MOC.md
+│   ├── Networking MOC.md
 │   └── ...
 └── Inbox/
 ```
 
-![PARA 文件夹结构](assets/sidebar.png)
+![PARA folder structure](assets/sidebar.png)
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 安装
+### Install
 
 ```bash
 npx skills add https://github.com/HuangMingwang/obsidian-organize
 ```
 
-### 使用
+### Usage
 
-在 Claude Code 中 `cd` 到你的 Obsidian vault 目录，然后说：
+In Claude Code, `cd` to your Obsidian vault directory, then say:
 
-| 你说 | 效果 |
-|------|------|
-| 「整理笔记 xxx.md」 | 自动分类、打标签、建链接、更新 MOC |
-| 「精简笔记 xxx.md」 | 精简内容，原文备份 |
-| 「生成一篇关于 Docker 的笔记」 | 从零生成 + 自动整理 |
-| 「整理这个文件夹」 | 批量整理目录下所有笔记 |
+| You say | Effect |
+|---------|--------|
+| "organize note xxx.md" | Auto-classify, tag, link, update MOC |
+| "simplify note xxx.md" | Simplify content, backup original |
+| "generate a note about Docker" | Generate from scratch + auto-organize |
+| "organize this folder" | Batch organize all notes in directory |
 
-首次运行会自动扫描 vault，生成分类配置（`.obsidian-organize.yml`），确认后开始工作。
+On first run, it auto-scans your vault and generates a classification config (`.obsidian-organize.yml`) for your approval.
 
-## 📖 背后的方法论
+## 📖 Methodology
 
-本项目基于三套经典笔记管理方法：
+Built on three proven note-taking methods:
 
-- **PARA** — 按 Projects / Areas / Resources / Archives 四层分类，让每条笔记都有归属
-- **MOC（Map of Contents）** — 为每个领域维护索引页，替代传统文件夹层级导航
-- **Zettelkasten（卡片笔记法）** — 通过双向链接建立笔记间的语义关联
+- **PARA** — Organize by Projects / Areas / Resources / Archives, giving every note a home
+- **MOC (Map of Contents)** — Maintain index pages per domain, replacing deep folder hierarchies
+- **Zettelkasten** — Build semantic connections between notes through bidirectional links
 
-obsidian-organize 把这三套方法论的日常操作全部自动化，你只需要专注写笔记。
+obsidian-organize automates the daily operations of all three — you just focus on writing.
 
-## 🔒 安全机制
+## 🔒 Safety
 
-- 每条笔记单独 git commit，不满意可逐条回滚
-- 重写前自动备份原文到 Archives
-- 分类不确定时会询问你，不会乱猜
-- 不会删除任何文件
+- Each note gets its own git commit for granular rollback
+- Originals auto-backed up to Archives before rewriting
+- Asks you when classification is ambiguous — never guesses
+- Never deletes any files
 
 ## 📄 License
 
