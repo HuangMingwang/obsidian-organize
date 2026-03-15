@@ -102,9 +102,16 @@ In Claude Code, `cd` to your Obsidian vault directory, then say:
 | "simplify note xxx.md" | Simplify content, backup original |
 | "rewrite note, format only" | Clean up formatting without changing content |
 | "generate a note about Docker" | Generate from scratch + auto-organize |
+| "rewrite note Inbox/" | Batch-rewrite a folder of notes with per-note backups and commits |
 | "organize this folder" | Batch organize all notes in directory |
 
 On first run, it auto-scans your vault and generates a classification config (`.obsidian-organize.yml`) for your approval.
+
+## Large Batch Requests
+
+When you point obsidian-organize at a folder or a very large set of notes, it does not try to rewrite everything in one uncontrolled pass. It first counts the candidate notes, tells you the scope, then processes them in small batches with visible progress.
+
+If the runtime supports faster parallel execution, batches can run concurrently. If not, the same workflow falls back to sequential processing automatically. Either way, per-note safety stays the same: individual commits, no silent guesses on ambiguous classification, and no overwriting without asking.
 
 ## 📖 Methodology
 

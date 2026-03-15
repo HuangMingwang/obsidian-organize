@@ -97,6 +97,35 @@ Each note gets its own commit for per-note rollback granularity.
 
 ---
 
+## Large Batch Processing
+
+Applies when the user targets a directory, says "all notes" / "整个文件夹", or the resolved note set is large enough that processing everything as one flat loop would be risky.
+
+### Batch Detection
+
+- Treat the request as a large batch when it resolves to more than 20 notes, or when the user explicitly asks for folder-level / vault-level cleanup.
+- Before making changes, enumerate candidate `.md` files under the requested scope.
+- Skip `Archives/原始版本/` backups and generated MOCs unless the user explicitly asks to include them.
+
+### Execution Rules
+
+1. **Scope confirmation**: Tell the user how many notes will be processed and the planned batch size before starting large-batch execution. Example: "将处理 84 篇笔记，按每批 5 篇执行，是否继续？"
+2. **Small batches only**: Split work into bounded batches. Default to 5 notes per batch; reduce to 3 if notes are unusually long or complex. Do not process an unbounded list as a single job.
+3. **Subagents when available**: If the runtime supports subagents, process batches in parallel with bounded concurrency.
+   - Run at most 3 batches at the same time.
+   - Each subagent must process notes inside its assigned batch sequentially, following the normal per-note flow and safety rules.
+   - NEVER spawn one subagent per note for very large note sets.
+4. **Sequential fallback**: If subagents are not available, use the exact same batch plan in the main agent and process batches sequentially. Large-batch behavior must still work correctly without subagents.
+5. **Progress reporting**: Report progress after each note or batch using a concrete format such as "Batch 2/6, note 3/5: Java线程池.md".
+6. **Keep per-note boundaries**: Large-batch mode changes scheduling only. Each note still gets its own backup/commit/review behavior based on the active mode.
+7. **Pause on ambiguity**: If a note needs user confirmation (classification mismatch, destination filename conflict, split decision, etc.), pause the affected note and ask. Do not silently guess in order to keep the batch moving.
+
+### Design Principle
+
+Large-batch execution is an optimization layer, not a separate workflow. Reuse the normal single-note rules for Rewrite, Organize, and Generate; only the scheduling and progress reporting change.
+
+---
+
 ## Mode: Rewrite
 
 Simplify and restructure note content. Does NOT touch metadata, classification, or links.
@@ -149,7 +178,7 @@ No inline diff confirmation. User reviews via `git diff HEAD~1` after commit. Un
 
 ### Batch Processing
 
-Supports directory-level invocation (e.g., `重写笔记 Areas/Java/`). Process one note at a time, each with its own commit. Show progress (e.g., "Processing 3/15: Java线程池.md").
+Supports directory-level invocation (e.g., `重写笔记 Areas/Java/`). For small sets, process one note at a time with its own backup and commit. For large sets, follow the global `Large Batch Processing` rules above; each note still keeps independent backup/commit boundaries.
 
 ---
 
@@ -243,7 +272,7 @@ Organize mode does NOT backup to Archives. Reason: all Organize changes (frontma
 
 ### Batch Processing
 
-Supports directory-level invocation (e.g., `整理笔记 Inbox/`). Process one note at a time, each with its own commit. Show progress. When user confirmation needed (classification, name conflict), ask per note.
+Supports directory-level invocation (e.g., `整理笔记 Inbox/`). For large sets, follow the global `Large Batch Processing` rules above. Each note still gets its own commit, and any note that needs confirmation (classification, name conflict) must pause and ask before continuing that note.
 
 ---
 
@@ -306,6 +335,10 @@ No predefined prompt templates. If the user specifies a style in their request (
 - **URL inaccessible**: Inform user "无法抓取该链接", suggest pasting content
 - **No relevant content in conversation**: Inform user "当前对话中未找到关于 X 的讨论"
 - **Very short pasted content (<50 chars)**: Generate normally, no restriction
+
+### Batch Processing
+
+If one request expands into many generated notes (for example, multiple URLs, multiple pasted source items, or a bulk import request), follow the global `Large Batch Processing` rules above. Each generated note must run the full output flow independently and receive its own commit.
 
 ---
 
